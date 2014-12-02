@@ -1,0 +1,2 @@
+#compdef mv
+compadd hello world
