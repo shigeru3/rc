@@ -1,111 +1,92 @@
-bindkey -e          # Emacs風キーバインド
+HISTFILE=~/.zhistory
+HISTSIZE=10000
+SAVEHIST=10000
 
-# コマンド履歴
-HISTFILE=~/.zsh_history
-HISTSIZE=100000
-SAVEHIST=100000
-bindkey '^r' history-incremental-pattern-search-backward
-bindkey '^s' history-incremental-pattern-search-forward
-autoload -Uz history-search-end
-zle -N history-beginning-search-backward-end history-search-end
-bindkey '^o' history-beginning-search-backward-end
+setopt appendhistory autocd extendedglob nomatch notify
+bindkey -e
+zstyle :compinstall filename '/home/ikawa/.zshrc'
 
-# cd
-#setopt AUTO_CD      # cdコマンドを省略して、ディレクトリ名で移動
-#setopt AUTO_PUSHD   # cdコマンドでpushd、移動履歴を自動的に保存する
-#setopt PUSHD_IGNORE_DUPS    # pushdの重複を避ける
+#zstyle ':completion:*' verbose yes
+#zstyle ':completion:*:descriptions' format '%B%d%b'
+#zstyle ':completion:*:messages' format '%d'
+#zstyle ':completion:*:warnings' format 'No matches for: %d'
+#zstyle ':completion:*' group-name ''
+
 autoload -Uz add-zsh-hook
-autoload -Uz chpwd_recent_dirs cdr
-add-zsh-hook chpwd chpwd_recent_dirs
-zstyle ":chpwd:*" recent-dirs-max 200
-zstyle ":chpwd:*" recent-dirs-default true
+autoload -Uz compinit; compinit
+autoload -U colors; colors
+setopt complete_in_word
+setopt correct
+setopt list_packed        # 補完候補を詰めて表示する
+setopt list_rows_first    # 補完候補を水平方向に表示する
+setopt list_types         # 補完候補にファイルの種類を表示する
+setopt extended_history   # コマンドの実行時刻を記録する
+setopt hist_ignore_dups   # 直前と同じコマンドは記録しない
+setopt hist_reduce_blanks # 余分なスペースを無視する
+setopt inc_append_history # 複数のセッションで実効順に記録する
+setopt share_history      # historyファイルを複数のセッションで参照する
+setopt hist_no_store      # historyコマンドを記録しない
+setopt hist_ignore_space  # 行頭がスペースのコマンドは記録しない
+setopt no_beep
+setopt nolistbeep
+setopt auto_pushd         # cdコマンドでpushdする
+setopt cdable_vars        # 絶対パスが入った変数をディレクトリとみなす
+setopt numeric_glob_sort  # ファイル名を数値としてソート
+setopt auto_resume        # 実行中のjobを１文字で指定
 
-# zmv
-autoload -Uz zmv
-alias zmv='noglob zmv -W'
-
-# 補完機能を有効にする
-fpath=(/usr/local/share/zsh-completions $fpath)
-autoload -Uz compinit
-compinit
-zstyle ':completion:*:default' menu select=2
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
-
-# 単語区切りの設定
-autoload -Uz select-word-style
-select-word-style default
-zstyle ':zle:*' word-chars " /=;@:{},|"
-zstyle ':zle:*' word-style unspecified
-
-# プロンプト
-PROMPT="[%n@%m](%*%) %~ %# "
-RPROMPT="[%~]"
-
-# vcs_info
+## ブランチ
 autoload -Uz vcs_info
-zstyle ':vcs_info:*' formats '%F{green}[%S(%b:%s)]%f'
+zstyle ':vcs_info:*' formats '[%b]'
+zstyle ':vcs_info:*' actionformats '[%b|%a]'
+precmd () {
+  psvar=()
+  LANG=en_US.UTF-8 vcs_info
+  [[ -n "$vcs_invo_msg_0_" ]] && psvar[1]="$vcs_info_msg_0_"
+}
+
+## プロンプト
+if [[ $TERM = dumb || $TERM = emacs ]] {
+  export PROMPT="[%n@%m]%(!.#.$) "
+  export RPROMPT="[%(5~,%-2~/.../%2~,%~)]"
+} else {
+  local DEFAULT=$'%{\e[m%}'
+  export PROMPT="%{$fg[green]%}[%n@%m]%(!.#.$) "$DEFAULT
+  export RPROMPT="%1(v|%F{green}%1v%f|)%{$fg[yellow]%}[%(5~,%-2~/.../%2~,%~)]"$DEFAULT
+  export SPROMPT="%{$fg[red]%} '%R' -> '%r' ? [nyae]: "$DEFAULT
+}
+
+## vcs_info
+autoload -Uz vcs_info
+zstyle ':vcs_info:*' formats '%F{yellow}[%S(%b:%s)]%f'
 zstyle ':vcs_info:*' actionformats '%F{red}[%S(%b|%a:%s)]%f'
 function _update_vcs_info_msg() {
-  LANG=en_US.UTF-8 vcs_info
-  RPROMPT="${vcs_info_msg_0_}"
+#    LANG=en_US.UTF-8 vcs_info
+#    RPROMPT="${vcs_info_msg_0}"
 }
 add-zsh-hook precmd _update_vcs_info_msg
 
-# Syntax Highlight
-source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+## coreファイルを抑制する
+unlimit
+limit core 0
+limit -s
 
-# 不要な機能を無効
-# setopt IGNORE_EOF   # ^Dでzshを終了しない
-setopt NO_FLOW_CONTROL  # ^Q/^Sのフローコントロールを無効
-setopt NO_BEEP  # BEEP音を鳴らさない
+## グローバルエイリアス
+alias -g M='|more'
+alias -g H='|head'
+alias -g T='|tail'
+alias -g G='|grep'
+alias -g GI='|grep -i'
+alias -g ....='../..'
 
-# エイリアス(コマンドを置き換える)
-alias ls='ls -F'    # ディレクトリ名には/をつける
-alias la='ls -a'    # 隠しファイルも表示する
-alias ll='ls -l'    # リスト表示
+## エイリアス
+alias ls="ls -G"
+alias ll="ls -lh"
+alias la="ls -alh"
+alias vi='vim'
 
-alias rm='rm -i'    # 削除確認
-alias cp='cp -i'
-alias mv='mv -i'
+typeset -U path cdpath fpath manpath # 変数の重複する値を削除
 
-alias mkdir='mkdir -p'  # 再帰的にディレクトリを作成
+bindkey "^P" history-beginning-search-backward
 
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
-
-# グローバルエイリアス(コマンドのどの位置でも置きかわる)
-alias -g L='| less'
-alias -g H='| head'
-alias -g T='| tail'
-alias -g G='| grep'
-alias -g N='> /dev/null'
-alias -g V='| vim -R -'
-alias -g P=' --help | less'
-
-# コマンド履歴をpecoで検索して実行する
-function peco-execute-history() {
-  local item
-  item=$(builtin history -n -r 1 | peco --query="$LBUFFER")
-  if [[ -z "$item" ]]; then
-    return 1
-  fi
-  BUFFER="$item"
-  CURSOR=$#BUFFER
-}
-zle -N peco-execute-history
-bindkey '^x^r' peco-execute-history
-
-# 最近移動したディレクトリをpecoで検索して移動する
-function peco-cdr() {
-  local item
-  item=$(cdr -l | sed 's/^[^ ]\{1,\} \{1,\}//' | peco)
-  if [[ -z "$item" ]]; then
-    return 1
-  fi
-  BUFFER="cd -- $item"
-  zle accept-line
-}
-zle -N peco-cdr
-bindkey '^xb' peco-cdr
-
+### Added by the Heroku Toolbelt
+export PATH="/usr/local/heroku/bin:$PATH"
